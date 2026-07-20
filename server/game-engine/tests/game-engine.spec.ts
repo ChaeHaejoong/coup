@@ -1,0 +1,225 @@
+import { beforeEach, describe, expect, test } from "vitest";
+
+import Game from "../index.js";
+import { ActionType, Card, Phase, type Player } from "../types.js";
+
+const players: Player[] = ["해중", "성준", "현서", "기일"].map((name, index) => ({
+  id: index + 1,
+  name,
+}));
+
+let game: Game;
+
+beforeEach(() => {
+  game = new Game(players);
+  game.start();
+});
+
+describe("setup and turns", () => {
+  test("starts players with two influence cards, two coins, and the first turn", () => {
+    const state = game.getState();
+
+    expect(state.phase).toBe(Phase.IDLE);
+    expect(state.turnGamer.id).toBe(1);
+    expect(state.gamers).toHaveLength(4);
+    expect(state.gamers.every((gamer) => gamer.coin === 2)).toBe(true);
+    expect(state.gamers.every((gamer) => gamer.deck.length === 2)).toBe(true);
+    expect(state.winner).toBeNull();
+  });
+
+  test("nextTurn skips dead players and wraps to the first alive player", () => {
+    const state = game.getState();
+    state.gamers[1]!.deck = [];
+    state.gamers[1]!.isAlive = false;
+
+    game.nextTurn();
+
+    expect(game.getState().turnGamer.id).toBe(3);
+  });
+});
+
+describe("basic actions", () => {
+  test("income resolves immediately and advances the turn", () => {
+    game.act({ type: ActionType.INCOME, actorId: 1 });
+
+    const state = game.getState();
+    expect(state.gamers[0]?.coin).toBe(3);
+    expect(state.turnGamer.id).toBe(2);
+    expect(state.phase).toBe(Phase.IDLE);
+  });
+
+  test("tax can be challenged or passed, then gives three coins", () => {
+    game.act({ type: ActionType.TAX, actorId: 1 });
+
+    expect(game.getState().phase).toBe(Phase.AWAIT_CHALLENGE);
+
+    game.passChallenge(2);
+    game.passChallenge(3);
+    game.passChallenge(4);
+
+    const state = game.getState();
+    expect(state.gamers[0]?.coin).toBe(5);
+    expect(state.turnGamer.id).toBe(2);
+  });
+
+  test("foreign aid can be blocked by duke", () => {
+    game.act({ type: ActionType.FOREIGN_AID, actorId: 1 });
+
+    expect(game.getState().phase).toBe(Phase.AWAIT_BLOCK);
+
+    game.block(2, Card.DUKE);
+    game.passBlockChallenge(1);
+    game.passBlockChallenge(3);
+    game.passBlockChallenge(4);
+
+    const state = game.getState();
+    expect(state.gamers[0]?.coin).toBe(2);
+    expect(state.turnGamer.id).toBe(2);
+  });
+
+  test("steal takes up to two coins from the target", () => {
+    game.act({ type: ActionType.STEAL, actorId: 1, targetId: 2 });
+    game.passChallenge(2);
+    game.passChallenge(3);
+    game.passChallenge(4);
+    game.passBlock(2);
+
+    const state = game.getState();
+    expect(state.gamers[0]?.coin).toBe(4);
+    expect(state.gamers[1]?.coin).toBe(0);
+    expect(state.turnGamer.id).toBe(2);
+  });
+
+  test("coup forces the target to lose influence", () => {
+    game.getState().gamers[0]!.coin = 7;
+
+    game.act({ type: ActionType.COUP, actorId: 1, targetId: 2 });
+
+    expect(game.getState().phase).toBe(Phase.AWAIT_DECISION);
+
+    game.chooseCard(2, [0]);
+
+    const state = game.getState();
+    expect(state.gamers[0]?.coin).toBe(0);
+    expect(state.gamers[1]?.deck).toHaveLength(1);
+    expect(state.turnGamer.id).toBe(2);
+  });
+});
+
+describe("validation", () => {
+  test("rejects actions from players who do not have the turn", () => {
+    expect(() => game.act({ type: ActionType.INCOME, actorId: 2 })).toThrow(
+      "not this player's turn",
+    );
+  });
+
+  test("forces coup when the turn player has ten or more coins", () => {
+    game.getState().gamers[0]!.coin = 10;
+
+    expect(() => game.act({ type: ActionType.INCOME, actorId: 1 })).toThrow(
+      "must coup",
+    );
+  });
+
+  test("rejects missing or dead targets", () => {
+    expect(() => game.act({ type: ActionType.STEAL, actorId: 1 })).toThrow(
+      "target is required",
+    );
+  });
+});
+
+describe("challenge resolution", () => {
+  test("successful challenge cancels the action and makes the claimant lose influence", () => {
+    game.getState().gamers[0]!.deck = [Card.CONTESSA, Card.CAPTAIN];
+
+    game.act({ type: ActionType.TAX, actorId: 1 });
+    game.challenge(2);
+    game.chooseCard(1, [0]);
+
+    const state = game.getState();
+    expect(state.gamers[0]?.deck).toHaveLength(1);
+    expect(state.gamers[0]?.coin).toBe(2);
+    expect(state.turnGamer.id).toBe(2);
+  });
+
+  test("failed challenge makes challenger lose influence and action continues", () => {
+    game.getState().gamers[0]!.deck = [Card.DUKE, Card.CAPTAIN];
+
+    game.act({ type: ActionType.TAX, actorId: 1 });
+    game.challenge(2);
+    game.chooseCard(2, [0]);
+
+    const state = game.getState();
+    expect(state.gamers[0]?.deck).toHaveLength(2);
+    expect(state.gamers[0]?.coin).toBe(5);
+    expect(state.gamers[1]?.deck).toHaveLength(1);
+    expect(state.turnGamer.id).toBe(2);
+  });
+});
+
+describe("block challenge resolution", () => {
+  test("successful block challenge makes blocker lose influence and action succeeds", () => {
+    game.getState().gamers[1]!.deck = [Card.CAPTAIN, Card.ASSASSIN];
+
+    game.act({ type: ActionType.FOREIGN_AID, actorId: 1 });
+    game.block(2, Card.DUKE);
+    game.challengeBlock(1);
+    game.chooseCard(2, [0]);
+
+    const state = game.getState();
+    expect(state.gamers[0]?.coin).toBe(4);
+    expect(state.gamers[1]?.deck).toHaveLength(1);
+    expect(state.turnGamer.id).toBe(2);
+  });
+
+  test("failed block challenge makes challenger lose influence and action stays blocked", () => {
+    game.getState().gamers[1]!.deck = [Card.DUKE, Card.ASSASSIN];
+
+    game.act({ type: ActionType.FOREIGN_AID, actorId: 1 });
+    game.block(2, Card.DUKE);
+    game.challengeBlock(1);
+    game.chooseCard(1, [0]);
+
+    const state = game.getState();
+    expect(state.gamers[0]?.coin).toBe(2);
+    expect(state.gamers[0]?.deck).toHaveLength(1);
+    expect(state.gamers[1]?.deck).toHaveLength(2);
+    expect(state.turnGamer.id).toBe(2);
+  });
+});
+
+describe("decisions and winner", () => {
+  test("exchange draws two cards and lets the actor keep two", () => {
+    game.getState().gamers[0]!.deck = [Card.AMBASSADOR, Card.DUKE];
+
+    game.act({ type: ActionType.CHANGE, actorId: 1 });
+    game.passChallenge(2);
+    game.passChallenge(3);
+    game.passChallenge(4);
+
+    const decision = game.getState().pendingDecision;
+    expect(decision?.type).toBe("EXCHANGE");
+    expect(decision?.cards).toHaveLength(4);
+
+    game.chooseCard(1, [0, 1]);
+
+    const state = game.getState();
+    expect(state.gamers[0]?.deck).toHaveLength(2);
+    expect(state.turnGamer.id).toBe(2);
+  });
+
+  test("sets winner when only one player remains alive", () => {
+    const state = game.getState();
+    state.gamers[1]!.isAlive = false;
+    state.gamers[1]!.deck = [];
+    state.gamers[2]!.isAlive = false;
+    state.gamers[2]!.deck = [];
+    state.gamers[3]!.isAlive = false;
+    state.gamers[3]!.deck = [];
+
+    game.nextTurn();
+
+    expect(game.getState().phase).toBe(Phase.FINISHED);
+    expect(game.getState().winner?.id).toBe(1);
+  });
+});

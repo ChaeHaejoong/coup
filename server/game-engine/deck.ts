@@ -3,9 +3,11 @@ import { Card } from "./types.js";
 export default class CourtDeck {
   private deck: Card[];
 
-  constructor() {
-    this.deck = this.createCourtDeck();
-    this.shuffle();
+  constructor(cards?: Card[]) {
+    this.deck = cards ? [...cards] : this.createCourtDeck();
+    if (!cards) {
+      this.shuffle();
+    }
   }
 
   private createCourtDeck(): Card[] {
@@ -34,6 +36,11 @@ export default class CourtDeck {
 
   putBack(card: Card): void {
     this.deck.push(card);
+    this.shuffle();
+  }
+
+  putBackMany(cards: Card[]): void {
+    this.deck.push(...cards);
     this.shuffle();
   }
 }

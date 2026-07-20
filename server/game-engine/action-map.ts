@@ -1,4 +1,12 @@
-import { coupOnSuccess, foreignAidOnSuccess, incomeOnSuccess, taxOnSuccess } from "./actions.js";
+import {
+  changeOnSuccess,
+  coupOnSuccess,
+  foreignAidOnSuccess,
+  incomeOnSuccess,
+  assassinateOnSuccess,
+  stealOnSuccess,
+  taxOnSuccess,
+} from "./actions.js";
 import {
   Card,
   ActionType,
@@ -10,7 +18,7 @@ export type ActionInfo = {
   blockerScope: "anyone" | "target" | "none";
   claimedCard: Card | null;
   isTargetRequired: boolean;
-  onSuccess: (state: GameState, targetId?: number) => void;
+  onSuccess: (state: GameState) => void;
 };
 export type ActionMap = Record<ActionType, ActionInfo>;
 
@@ -48,18 +56,20 @@ export const actionMap: ActionMap = {
     blockerScope: "target",
     claimedCard: Card.CAPTAIN,
     isTargetRequired: true,
-    onSuccess: 
+    onSuccess: stealOnSuccess
   },
   [ActionType.CHANGE]: {
     blockableCard: [],
     blockerScope: "none",
     claimedCard: Card.AMBASSADOR,
     isTargetRequired: false,
+    onSuccess: changeOnSuccess
   },
   [ActionType.ASSASSINATE]: {
     blockableCard: [Card.CONTESSA],
     blockerScope: "target",
     claimedCard: Card.ASSASSIN,
     isTargetRequired: true,
+    onSuccess: assassinateOnSuccess
   },
 };
