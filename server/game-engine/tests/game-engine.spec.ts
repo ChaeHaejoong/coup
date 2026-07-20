@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "vitest";
 
-import Game from "../index.js";
-import { ActionType, Card, Phase, type Player } from "../types.js";
+import Game from "../index";
+import { ActionType, Card, Phase, type Player } from "../types";
 
 const players: Player[] = ["해중", "성준", "현서", "기일"].map((name, index) => ({
   id: index + 1,

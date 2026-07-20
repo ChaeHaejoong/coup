@@ -1,4 +1,4 @@
-import { Card } from "./types.js";
+import { Card } from "./types";
 
 export default class CourtDeck {
   private deck: Card[];

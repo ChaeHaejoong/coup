@@ -1,5 +1,5 @@
-import { DecisionAfter, DecisionType, Phase, type GameState } from "./types.js";
-import { getGamerById } from "./utils.js";
+import { DecisionAfter, DecisionType, Phase, type GameState } from "./types";
+import { getGamerById } from "./utils";
 
 export function incomeOnSuccess(state: GameState): void {
   state.turnGamer.coin += 1;

@@ -1,5 +1,5 @@
-import { actionMap } from "./action-map.js";
-import CourtDeck from "./deck.js";
+import { actionMap } from "./action-map";
+import CourtDeck from "./deck";
 import {
   ActionType,
   Card,
@@ -10,8 +10,8 @@ import {
   type GameState,
   type Gamer,
   type Player,
-} from "./types.js";
-import { getGamerById } from "./utils.js";
+} from "./types";
+import { getGamerById } from "./utils";
 
 export default class Game {
   private gameState: GameState = {
@@ -304,6 +304,7 @@ export default class Game {
     this.gameState.phase = Phase.ACTION_RESOLVED;
     actionMap[action.type].onSuccess(this.gameState);
 
+    // very stinky code. need to modify
     if ((this.gameState.phase as Phase) === Phase.AWAIT_DECISION) {
       if (action.type === ActionType.CHANGE) {
         this.drawExchangeCards();

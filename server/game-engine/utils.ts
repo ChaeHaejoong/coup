@@ -1,4 +1,4 @@
-import type { Gamer } from "./types.js";
+import type { Gamer } from "./types";
 
 export function getGamerById(gamers: Gamer[], targetId: number): Gamer {
   const foundGamer = gamers.find((gamer) => gamer.id === targetId);

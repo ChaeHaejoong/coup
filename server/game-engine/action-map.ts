@@ -6,12 +6,12 @@ import {
   assassinateOnSuccess,
   stealOnSuccess,
   taxOnSuccess,
-} from "./actions.js";
+} from "./actions";
 import {
   Card,
   ActionType,
   type GameState,
-} from "./types.js";
+} from "./types";
 
 export type ActionInfo = {
   blockableCard: Card[];
