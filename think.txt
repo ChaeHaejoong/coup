@@ -1,0 +1,23 @@
+1. 접속
+2. 간단한 웰컴 메시지
+3. /room > http
+4. /set name "해중" > http
+5. /enter 1 > socket connect
+6. /create "방 이름" > http
+#### robby
+
+1. /players > socket
+2. /start > socket
+3. /chat << default > socket 
+#### room
+
+1. 모든 선택을 다지선다
+2. /status 
+3. /chat << default
+#### game
+
++
+/help
+    robby) create, room, set-name, enter
+    room) players, set-name, start, chat(default)
+    game) [number], status, chat(default)

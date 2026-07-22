@@ -10,6 +10,7 @@
     "dev": "nest start --watch",
     "build": "nest build",
     "start": "node dist/server/api/main.js",
+    "client": "tsx client/index.ts",
     "check": "tsc --noEmit",
     "test": "vitest"
   },
@@ -17,8 +18,12 @@
     "@nestjs/common": "^11.1.28",
     "@nestjs/core": "^11.1.28",
     "@nestjs/platform-express": "^11.1.28",
+    "@nestjs/platform-socket.io": "^11.1.28",
+    "@nestjs/websockets": "^11.1.28",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.24",
