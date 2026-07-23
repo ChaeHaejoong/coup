@@ -10,6 +10,18 @@ import {
 import type { Server, Socket } from "socket.io";
 
 import {
+  GameErrorCode,
+  GameRequestEvent,
+  GameResponseEvent,
+  type ChatReceivedResponse,
+  type ChatRequest,
+  type GameCommandRequest,
+  type GameCommandResult,
+  type GameStateRequest,
+  type GameView,
+  type StartGameRequest,
+} from "../../../shared/game-contract";
+import {
   RoomRequestEvent,
   RoomResponseEvent,
   type CreateRoomRequest,
@@ -18,7 +30,9 @@ import {
   type Room,
   type RoomJoinedResponse,
 } from "../../../shared/room-contract";
-import { RoomService } from "./room.service";
+import { RoomService, type PlayerGameView } from "./room.service";
+
+type Ack<T> = (result: T) => void;
 
 @WebSocketGateway({
   cors: true,
@@ -30,7 +44,11 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly sockets = new Map<string, Socket>();
   private readonly socketPlayers = new Map<string, { roomId: number; playerId: number }>();
 
-  constructor(private readonly roomService: RoomService) { }
+  constructor(private readonly roomService: RoomService) {
+    this.roomService.setGameUpdateListener((_roomId, views) => {
+      this.emitGameViews(views);
+    });
+  }
 
   handleConnection(client: Socket): void {
     this.sockets.set(client.id, client);
@@ -103,6 +121,53 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return room;
   }
 
+  @SubscribeMessage(GameRequestEvent.START_GAME)
+  startGame(
+    @MessageBody() body: StartGameRequest,
+    ack?: Ack<GameCommandResult>,
+  ): GameCommandResult {
+    return this.runGameOperation(body.playerId, ack, () =>
+      this.roomService.startGame(body.roomId, body.playerId),
+    );
+  }
+
+  @SubscribeMessage(GameRequestEvent.SUBMIT_GAME_COMMAND)
+  submitGameCommand(
+    @MessageBody() body: GameCommandRequest,
+    ack?: Ack<GameCommandResult>,
+  ): GameCommandResult {
+    return this.runGameOperation(body.playerId, ack, () =>
+      this.roomService.submitGameCommand(
+        body.roomId,
+        body.playerId,
+        body.command,
+      ),
+    );
+  }
+
+  @SubscribeMessage(GameRequestEvent.REQUEST_GAME_STATE)
+  requestGameState(
+    @MessageBody() body: GameStateRequest,
+    ack?: Ack<GameCommandResult>,
+  ): GameCommandResult {
+    return this.runGameOperation(body.playerId, ack, () =>
+      this.roomService.getGameViews(body.roomId),
+    );
+  }
+
+  @SubscribeMessage(GameRequestEvent.CHAT)
+  chat(@MessageBody() body: ChatRequest): ChatReceivedResponse {
+    const response = {
+      roomId: body.roomId,
+      playerId: body.playerId,
+      message: body.message,
+    };
+    this.server
+      .to(this.getSocketRoomName(body.roomId))
+      .emit(GameResponseEvent.CHAT_RECEIVED, response);
+    return response;
+  }
+
   handleDisconnect(client: Socket): void {
     this.sockets.delete(client.id);
 
@@ -118,5 +183,52 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private getSocketRoomName(roomId: number): string {
     return `room:${roomId}`;
+  }
+
+  private runGameOperation(
+    playerId: number,
+    ack: Ack<GameCommandResult> | undefined,
+    operation: () => PlayerGameView[],
+  ): GameCommandResult {
+    try {
+      const views = operation();
+      this.emitGameViews(views);
+      const ownView = this.findOwnView(views, playerId);
+      const result: GameCommandResult = { ok: true, view: ownView };
+      ack?.(result);
+      return result;
+    } catch (error) {
+      const errorCode = this.toGameErrorCode(error);
+      const result: GameCommandResult = { ok: false, errorCode };
+      ack?.(result);
+      return result;
+    }
+  }
+
+  private emitGameViews(views: PlayerGameView[]): void {
+    for (const { socketId, view } of views) {
+      this.sockets
+        .get(socketId)
+        ?.emit(GameResponseEvent.GAME_STATE_UPDATED, view);
+    }
+  }
+
+  private findOwnView(views: PlayerGameView[], playerId: number): GameView {
+    const ownView = views.find((view) => view.playerId === playerId)?.view;
+    if (!ownView) {
+      throw new Error(GameErrorCode.NOT_ROOM_MEMBER);
+    }
+    return ownView;
+  }
+
+  private toGameErrorCode(error: unknown): GameErrorCode {
+    if (error instanceof Error && this.isGameErrorCode(error.message)) {
+      return error.message;
+    }
+    return GameErrorCode.COMMAND_REJECTED;
+  }
+
+  private isGameErrorCode(value: string): value is GameErrorCode {
+    return Object.values(GameErrorCode).includes(value as GameErrorCode);
   }
 }

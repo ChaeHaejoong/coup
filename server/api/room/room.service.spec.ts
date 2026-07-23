@@ -16,4 +16,15 @@ describe("RoomService", () => {
       { id: 1, socketId: "socket-1", name: "해중", role: PlayerRole.HOST },
     ]);
   });
+
+  test("only host can start a game with 2-6 players", () => {
+    const service = new RoomService();
+    const created = service.create("room", "host", "socket-1");
+    service.joinRoom({ roomId: created.room.roomId, playerName: "p2" }, "socket-2");
+
+    const views = service.startGame(created.room.roomId, created.playerId);
+
+    expect(views).toHaveLength(2);
+    expect(views[0]?.view.phase).toBe("IDLE");
+  });
 });
