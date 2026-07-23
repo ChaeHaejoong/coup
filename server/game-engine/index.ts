@@ -69,7 +69,7 @@ export default class Game {
   }
 
   getState(): GameState {
-    return this.gameState;
+    return structuredClone(this.gameState) as GameState;
   }
 
   act(action: Action): void {

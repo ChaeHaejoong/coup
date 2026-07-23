@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "vitest";
 
 import Game from "../index";
+import { mutateGameForTest } from "../test-utils";
 import { ActionType, Card, Phase, type Player } from "../types";
 
 const players: Player[] = ["해중", "성준", "현서", "기일"].map(
@@ -18,6 +19,13 @@ beforeEach(() => {
 });
 
 describe("게임 세팅, 턴 로직", () => {
+  test("getState returns a snapshot that cannot mutate the running game", () => {
+    const snapshot = game.getState();
+    snapshot.gamers[0]!.coin = 99;
+
+    expect(game.getState().gamers[0]!.coin).toBe(2);
+  });
+
   test("카드 두장, 코인 두개, 첫번쨰 플레이어 설정이 잘 되는지?", () => {
     const state = game.getState();
 
@@ -30,9 +38,10 @@ describe("게임 세팅, 턴 로직", () => {
   });
 
   test("죽은 사람을 스킵하고 다음 턴으로 넘어가는지?", () => {
-    const state = game.getState();
-    state.gamers[1]!.deck = [];
-    state.gamers[1]!.isAlive = false;
+    mutateGameForTest(game, (state) => {
+      state.gamers[1]!.deck = [];
+      state.gamers[1]!.isAlive = false;
+    });
 
     game.nextTurn();
 
@@ -80,7 +89,9 @@ describe("액션", () => {
   });
 
   test("blocked assassinate keeps the declaration cost paid", () => {
-    game.getState().gamers[0]!.coin = 3;
+    mutateGameForTest(game, (state) => {
+      state.gamers[0]!.coin = 3;
+    });
 
     game.act({ type: ActionType.ASSASSINATE, actorId: 1, targetId: 2 });
     game.passChallenge(2);
@@ -109,7 +120,9 @@ describe("액션", () => {
   });
 
   test("coup forces the target to lose influence", () => {
-    game.getState().gamers[0]!.coin = 7;
+    mutateGameForTest(game, (state) => {
+      state.gamers[0]!.coin = 7;
+    });
 
     game.act({ type: ActionType.COUP, actorId: 1, targetId: 2 });
 
@@ -132,7 +145,9 @@ describe("validation", () => {
   });
 
   test("forces coup when the turn player has ten or more coins", () => {
-    game.getState().gamers[0]!.coin = 10;
+    mutateGameForTest(game, (state) => {
+      state.gamers[0]!.coin = 10;
+    });
 
     expect(() => game.act({ type: ActionType.INCOME, actorId: 1 })).toThrow(
       "must coup",
@@ -148,7 +163,9 @@ describe("validation", () => {
 
 describe("challenge resolution", () => {
   test("successful challenge cancels the action and makes the claimant lose influence", () => {
-    game.getState().gamers[0]!.deck = [Card.CONTESSA, Card.CAPTAIN];
+    mutateGameForTest(game, (state) => {
+      state.gamers[0]!.deck = [Card.CONTESSA, Card.CAPTAIN];
+    });
 
     game.act({ type: ActionType.TAX, actorId: 1 });
     game.challenge(2);
@@ -161,7 +178,9 @@ describe("challenge resolution", () => {
   });
 
   test("failed challenge makes challenger lose influence and action continues", () => {
-    game.getState().gamers[0]!.deck = [Card.DUKE, Card.CAPTAIN];
+    mutateGameForTest(game, (state) => {
+      state.gamers[0]!.deck = [Card.DUKE, Card.CAPTAIN];
+    });
 
     game.act({ type: ActionType.TAX, actorId: 1 });
     game.challenge(2);
@@ -177,7 +196,9 @@ describe("challenge resolution", () => {
 
 describe("block challenge resolution", () => {
   test("successful block challenge makes blocker lose influence and action succeeds", () => {
-    game.getState().gamers[1]!.deck = [Card.CAPTAIN, Card.ASSASSIN];
+    mutateGameForTest(game, (state) => {
+      state.gamers[1]!.deck = [Card.CAPTAIN, Card.ASSASSIN];
+    });
 
     game.act({ type: ActionType.FOREIGN_AID, actorId: 1 });
     game.block(2, Card.DUKE);
@@ -191,7 +212,9 @@ describe("block challenge resolution", () => {
   });
 
   test("failed block challenge makes challenger lose influence and action stays blocked", () => {
-    game.getState().gamers[1]!.deck = [Card.DUKE, Card.ASSASSIN];
+    mutateGameForTest(game, (state) => {
+      state.gamers[1]!.deck = [Card.DUKE, Card.ASSASSIN];
+    });
 
     game.act({ type: ActionType.FOREIGN_AID, actorId: 1 });
     game.block(2, Card.DUKE);
@@ -208,7 +231,9 @@ describe("block challenge resolution", () => {
 
 describe("decisions and winner", () => {
   test("exchange draws two cards and lets the actor keep two", () => {
-    game.getState().gamers[0]!.deck = [Card.AMBASSADOR, Card.DUKE];
+    mutateGameForTest(game, (state) => {
+      state.gamers[0]!.deck = [Card.AMBASSADOR, Card.DUKE];
+    });
 
     game.act({ type: ActionType.EXCHANGE, actorId: 1 });
     game.passChallenge(2);
@@ -227,13 +252,14 @@ describe("decisions and winner", () => {
   });
 
   test("sets winner when only one player remains alive", () => {
-    const state = game.getState();
-    state.gamers[1]!.isAlive = false;
-    state.gamers[1]!.deck = [];
-    state.gamers[2]!.isAlive = false;
-    state.gamers[2]!.deck = [];
-    state.gamers[3]!.isAlive = false;
-    state.gamers[3]!.deck = [];
+    mutateGameForTest(game, (state) => {
+      state.gamers[1]!.isAlive = false;
+      state.gamers[1]!.deck = [];
+      state.gamers[2]!.isAlive = false;
+      state.gamers[2]!.deck = [];
+      state.gamers[3]!.isAlive = false;
+      state.gamers[3]!.deck = [];
+    });
 
     game.nextTurn();
 
