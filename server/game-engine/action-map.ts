@@ -1,75 +1,63 @@
 import {
-  changeOnSuccess,
+  assassinateOnSuccess,
   coupOnSuccess,
+  exchangeOnSuccess,
   foreignAidOnSuccess,
   incomeOnSuccess,
-  assassinateOnSuccess,
   stealOnSuccess,
   taxOnSuccess,
 } from "./actions";
-import {
-  Card,
-  ActionType,
-  type GameState,
-} from "./types";
+import type { ActionInfo } from "./action-types";
+import { Card, ActionType } from "./types";
 
-export type ActionInfo = {
-  blockableCard: Card[];
-  blockerScope: "anyone" | "target" | "none";
-  claimedCard: Card | null;
-  isTargetRequired: boolean;
-  onSuccess: (state: GameState) => void;
-};
 export type ActionMap = Record<ActionType, ActionInfo>;
 
 export const actionMap: ActionMap = {
   [ActionType.INCOME]: {
-    blockableCard: [],
-    blockerScope: "none",
-    claimedCard: null,
-    isTargetRequired: false,
-    onSuccess: incomeOnSuccess
+    targetRequired: false,
+    onSuccess: incomeOnSuccess,
   },
   [ActionType.FOREIGN_AID]: {
-    blockableCard: [Card.DUKE],
-    blockerScope: "anyone",
-    claimedCard: null,
-    isTargetRequired: false,
-    onSuccess: foreignAidOnSuccess
+    block: {
+      cards: [Card.DUKE],
+      scope: "anyone",
+    },
+    targetRequired: false,
+    onSuccess: foreignAidOnSuccess,
   },
   [ActionType.COUP]: {
-    blockableCard: [],
-    blockerScope: "none",
-    claimedCard: null,
-    isTargetRequired: true,
-    onSuccess: coupOnSuccess
+    cost: 7,
+    isForcedAction: true,
+    targetRequired: true,
+    onSuccess: coupOnSuccess,
   },
   [ActionType.TAX]: {
-    blockableCard: [],
-    blockerScope: "none",
     claimedCard: Card.DUKE,
-    isTargetRequired: false,
-    onSuccess: taxOnSuccess
+    targetRequired: false,
+    onSuccess: taxOnSuccess,
   },
   [ActionType.STEAL]: {
-    blockableCard: [Card.AMBASSADOR, Card.CAPTAIN],
-    blockerScope: "target",
     claimedCard: Card.CAPTAIN,
-    isTargetRequired: true,
-    onSuccess: stealOnSuccess
+    block: {
+      cards: [Card.AMBASSADOR, Card.CAPTAIN],
+      scope: "target",
+    },
+    targetRequired: true,
+    onSuccess: stealOnSuccess,
   },
   [ActionType.CHANGE]: {
-    blockableCard: [],
-    blockerScope: "none",
     claimedCard: Card.AMBASSADOR,
-    isTargetRequired: false,
-    onSuccess: changeOnSuccess
+    targetRequired: false,
+    onSuccess: exchangeOnSuccess,
   },
   [ActionType.ASSASSINATE]: {
-    blockableCard: [Card.CONTESSA],
-    blockerScope: "target",
     claimedCard: Card.ASSASSIN,
-    isTargetRequired: true,
-    onSuccess: assassinateOnSuccess
+    block: {
+      cards: [Card.CONTESSA],
+      scope: "target",
+    },
+    cost: 3,
+    targetRequired: true,
+    onSuccess: assassinateOnSuccess,
   },
 };

@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, test } from "vitest";
 import Game from "../index";
 import { ActionType, Card, Phase, type Player } from "../types";
 
-const players: Player[] = ["해중", "성준", "현서", "기일"].map((name, index) => ({
-  id: index + 1,
-  name,
-}));
+const players: Player[] = ["해중", "성준", "현서", "기일"].map(
+  (name, index) => ({
+    id: index + 1,
+    name,
+  }),
+);
 
 let game: Game;
 
@@ -15,8 +17,8 @@ beforeEach(() => {
   game.start();
 });
 
-describe("setup and turns", () => {
-  test("starts players with two influence cards, two coins, and the first turn", () => {
+describe("게임 세팅, 턴 로직", () => {
+  test("카드 두장, 코인 두개, 첫번쨰 플레이어 설정이 잘 되는지?", () => {
     const state = game.getState();
 
     expect(state.phase).toBe(Phase.IDLE);
@@ -27,7 +29,7 @@ describe("setup and turns", () => {
     expect(state.winner).toBeNull();
   });
 
-  test("nextTurn skips dead players and wraps to the first alive player", () => {
+  test("죽은 사람을 스킵하고 다음 턴으로 넘어가는지?", () => {
     const state = game.getState();
     state.gamers[1]!.deck = [];
     state.gamers[1]!.isAlive = false;
@@ -38,7 +40,7 @@ describe("setup and turns", () => {
   });
 });
 
-describe("basic actions", () => {
+describe("액션", () => {
   test("income resolves immediately and advances the turn", () => {
     game.act({ type: ActionType.INCOME, actorId: 1 });
 
@@ -74,6 +76,22 @@ describe("basic actions", () => {
 
     const state = game.getState();
     expect(state.gamers[0]?.coin).toBe(2);
+    expect(state.turnGamer.id).toBe(2);
+  });
+
+  test("blocked assassinate keeps the declaration cost paid", () => {
+    game.getState().gamers[0]!.coin = 3;
+
+    game.act({ type: ActionType.ASSASSINATE, actorId: 1, targetId: 2 });
+    game.passChallenge(2);
+    game.passChallenge(3);
+    game.passChallenge(4);
+    game.block(2, Card.CONTESSA);
+    game.passBlockChallenge(1);
+
+    const state = game.getState();
+    expect(state.gamers[0]?.coin).toBe(0);
+    expect(state.gamers[1]?.deck).toHaveLength(2);
     expect(state.turnGamer.id).toBe(2);
   });
 
