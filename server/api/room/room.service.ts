@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 
 import {
   PlayerRole,
+  type CreateRoomResponse,
   type JoinRoomRequest,
   type Room,
   type RoomJoinedResponse,
@@ -62,7 +63,11 @@ export class RoomService {
     return this.toRoom(room);
   }
 
-  create(roomName: string): Room {
+  create(
+    roomName: string,
+    playerName: string,
+    socketId: string,
+  ): CreateRoomResponse {
     const roomId = this.generateRoomId();
     const room: StoredRoom = {
       roomId,
@@ -70,8 +75,19 @@ export class RoomService {
       players: [],
     };
     this.rooms.set(roomId, room);
+    const playerId = this.generatePlayerId(room);
+    room.players.push({
+      id: playerId,
+      socketId,
+      name: playerName,
+      role: PlayerRole.HOST,
+    });
 
-    return this.toRoom(room);
+    return {
+      room: this.toRoom(room),
+      playerId,
+      socketId,
+    };
   }
 
   removeRoom(roomId: number): void {

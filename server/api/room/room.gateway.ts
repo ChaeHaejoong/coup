@@ -12,6 +12,7 @@ import type { Server, Socket } from "socket.io";
 import {
   RoomRequestEvent,
   RoomResponseEvent,
+  type CreateRoomRequest,
   type JoinRoomRequest,
   type LeaveRoomRequest,
   type Room,
@@ -33,6 +34,36 @@ export class RoomGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   handleConnection(client: Socket): void {
     this.sockets.set(client.id, client);
+  }
+
+  @SubscribeMessage(RoomRequestEvent.CREATE_ROOM)
+  createRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: CreateRoomRequest,
+  ): RoomJoinedResponse {
+    const createResult = this.roomService.create(
+      body.roomName,
+      body.playerName,
+      client.id,
+    );
+    const room = createResult.room;
+    const socketRoomName = this.getSocketRoomName(room.roomId);
+
+    client.join(socketRoomName);
+    this.socketPlayers.set(client.id, {
+      roomId: room.roomId,
+      playerId: createResult.playerId,
+    });
+
+    const joinResult = {
+      room,
+      playerId: createResult.playerId,
+      socketId: createResult.socketId,
+    };
+    client.emit(RoomResponseEvent.ROOM_JOINED, joinResult);
+    this.server.to(socketRoomName).emit(RoomResponseEvent.ROOM_UPDATED, room);
+
+    return joinResult;
   }
 
   @SubscribeMessage(RoomRequestEvent.JOIN_ROOM)

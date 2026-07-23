@@ -1,10 +1,11 @@
 import { Body, Controller, Get, Post } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
 
 import {
   RoomHttpPath,
   type CreateRoomRequest,
+  type CreateRoomResponse,
   type ListRoomsResponse,
-  type Room,
 } from "../../../shared/room-contract";
 import { RoomService } from "./room.service";
 
@@ -18,7 +19,11 @@ export class RoomController {
   }
 
   @Post(RoomHttpPath.CREATE)
-  create(@Body() body: CreateRoomRequest): Room {
-    return this.roomService.create(body.roomName);
+  create(@Body() body: CreateRoomRequest): CreateRoomResponse {
+    return this.roomService.create(
+      body.roomName,
+      body.playerName,
+      `http:${randomUUID()}`,
+    );
   }
 }

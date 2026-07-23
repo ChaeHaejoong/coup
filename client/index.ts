@@ -16,7 +16,7 @@ import {
 } from "../shared/room-contract";
 
 type Command =
-  | { type: "create"; roomName: string }
+  | { type: "create"; roomName: string; playerName: string }
   | { type: "rooms" }
   | { type: "join"; roomId: number; playerName: string }
   | { type: "leave" }
@@ -56,12 +56,13 @@ function parseCommand(line: string): Command {
   }
 
   if (command === "/create") {
-    const roomName = args.join(" ").trim();
-    if (!roomName) {
-      return { type: "invalid", message: "사용법: /create <roomName>" };
+    const roomName = args[0]?.trim() ?? "";
+    const playerName = args.slice(1).join(" ").trim();
+    if (!roomName || !playerName) {
+      return { type: "invalid", message: "사용법: /create <roomName> <playerName>" };
     }
 
-    return { type: "create", roomName };
+    return { type: "create", roomName, playerName };
   }
 
   if (command === "/rooms") {
@@ -111,7 +112,7 @@ async function runCommand(command: Command): Promise<void> {
   }
 
   if (command.type === "create") {
-    await createRoom(command.roomName);
+    await createRoom(command.roomName, command.playerName);
     return;
   }
 
@@ -128,14 +129,14 @@ async function listRooms(): Promise<void> {
   printRooms(response.rooms);
 }
 
-async function createRoom(roomName: string): Promise<void> {
-  const body: CreateRoomRequest = { roomName };
-  const room = await request<Room>(`${roomBaseUrl()}/${RoomHttpPath.CREATE}`, {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+async function createRoom(roomName: string, playerName: string): Promise<void> {
+  await leaveCurrentRoom();
 
-  console.log(`created room ${room.roomId}: ${room.roomName}`);
+  const client = getSocket();
+  await connectSocket(client);
+
+  const body: CreateRoomRequest = { roomName, playerName };
+  client.emit(RoomRequestEvent.CREATE_ROOM, body);
 }
 
 async function joinRoom(roomId: number, playerName: string): Promise<void> {
@@ -245,7 +246,7 @@ function printRoom(room: Room): void {
 }
 
 function printHelp(): void {
-  console.log("commands: /rooms, /create <roomName>, /join <roomId> <playerName>, /leave, /exit");
+  console.log("commands: /rooms, /create <roomName> <playerName>, /join <roomId> <playerName>, /leave, /exit");
 }
 
 void main().catch((error: unknown) => {

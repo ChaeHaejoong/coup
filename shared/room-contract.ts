@@ -5,6 +5,7 @@ export const RoomHttpPath = {
 export type RoomHttpPath = (typeof RoomHttpPath)[keyof typeof RoomHttpPath];
 
 export const RoomRequestEvent = {
+  CREATE_ROOM: "createRoom",
   JOIN_ROOM: "joinRoom",
   LEAVE_ROOM: "leaveRoom",
 } as const;
@@ -38,6 +39,13 @@ export type Room = {
 
 export type CreateRoomRequest = {
   roomName: string;
+  playerName: string;
+};
+
+export type CreateRoomResponse = {
+  room: Room;
+  playerId: number;
+  socketId: string;
 };
 
 export type JoinRoomRequest = {
