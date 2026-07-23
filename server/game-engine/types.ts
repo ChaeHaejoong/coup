@@ -74,8 +74,35 @@ export type PendingBlock = {
   card: Card;
 };
 
+export const GameEventType = {
+  GAME_STARTED: "GAME_STARTED",
+  TURN_STARTED: "TURN_STARTED",
+  ACTION_DECLARED: "ACTION_DECLARED",
+  ACTION_BLOCKED: "ACTION_BLOCKED",
+  INFLUENCE_LOST: "INFLUENCE_LOST",
+  GAME_FINISHED: "GAME_FINISHED",
+} as const;
+export type GameEventType = (typeof GameEventType)[keyof typeof GameEventType];
+
+export type GameEvent =
+  | { type: "GAME_STARTED"; playerCount: number }
+  | { type: "TURN_STARTED"; playerId: number }
+  | {
+      type: "ACTION_DECLARED";
+      actorId: number;
+      actionType: ActionType;
+      targetId?: number;
+    }
+  | { type: "ACTION_BLOCKED"; blockerId: number }
+  | {
+      type: "INFLUENCE_LOST";
+      playerId: number;
+      remainingInfluence: number;
+    }
+  | { type: "GAME_FINISHED"; winnerId: number };
+
 export type GameState = {
-  gameHistory: string[];
+  events: GameEvent[];
   gamers: Gamer[];
   turnGamer: Gamer;
   phase: Phase;

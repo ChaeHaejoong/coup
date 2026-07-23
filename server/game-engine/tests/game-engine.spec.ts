@@ -19,6 +19,15 @@ beforeEach(() => {
 });
 
 describe("게임 세팅, 턴 로직", () => {
+  test("records structured events for game start and turn start", () => {
+    const state = game.getState();
+
+    expect(state.events).toEqual([
+      { type: "GAME_STARTED", playerCount: 4 },
+      { type: "TURN_STARTED", playerId: 1 },
+    ]);
+  });
+
   test("getState returns a snapshot that cannot mutate the running game", () => {
     const snapshot = game.getState();
     snapshot.gamers[0]!.coin = 99;
@@ -35,6 +44,22 @@ describe("게임 세팅, 턴 로직", () => {
     expect(state.gamers.every((gamer) => gamer.coin === 2)).toBe(true);
     expect(state.gamers.every((gamer) => gamer.deck.length === 2)).toBe(true);
     expect(state.winner).toBeNull();
+  });
+
+  test("rejects games with fewer than two players", () => {
+    const shortGame = new Game([{ id: 1, name: "solo" }]);
+
+    expect(() => shortGame.start()).toThrow("need 2-6 players");
+  });
+
+  test("rejects games with more than six players", () => {
+    const manyPlayers = Array.from({ length: 7 }, (_, index) => ({
+      id: index + 1,
+      name: `p${index + 1}`,
+    }));
+    const largeGame = new Game(manyPlayers);
+
+    expect(() => largeGame.start()).toThrow("need 2-6 players");
   });
 
   test("죽은 사람을 스킵하고 다음 턴으로 넘어가는지?", () => {

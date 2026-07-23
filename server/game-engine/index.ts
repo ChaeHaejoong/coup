@@ -15,7 +15,7 @@ import { getGamerById } from "./utils";
 
 export default class Game {
   private gameState: GameState = {
-    gameHistory: [],
+    events: [],
     gamers: [],
     turnGamer: {} as Gamer,
     phase: Phase.IDLE,
@@ -32,12 +32,12 @@ export default class Game {
   constructor(private players: Player[]) {}
 
   start(): void {
-    if (this.players.length < 2) {
-      throw new Error("need at least two players");
+    if (this.players.length < 2 || this.players.length > 6) {
+      throw new Error("need 2-6 players");
     }
 
     this.gameState = {
-      gameHistory: [],
+      events: [],
       gamers: this.players.map((info) => ({
         id: info.id,
         name: info.name,
@@ -62,10 +62,14 @@ export default class Game {
     }
 
     this.gameState.turnGamer = firstGamer;
-    this.gameState.gameHistory.push(
-      `${this.gameState.gamers.length}명으로 게임 시작`,
-    );
-    this.gameState.gameHistory.push(`${firstGamer.name}의 턴`);
+    this.gameState.events.push({
+      type: "GAME_STARTED",
+      playerCount: this.gameState.gamers.length,
+    });
+    this.gameState.events.push({
+      type: "TURN_STARTED",
+      playerId: firstGamer.id,
+    });
   }
 
   getState(): GameState {
@@ -81,6 +85,12 @@ export default class Game {
     this.gameState.challengePasses = [];
     this.gameState.blockPasses = [];
     this.gameState.blockChallengePasses = [];
+    this.gameState.events.push({
+      type: "ACTION_DECLARED",
+      actorId: action.actorId,
+      actionType: action.type,
+      ...(action.targetId ? { targetId: action.targetId } : {}),
+    });
 
     const actionInfo = actionMap[action.type];
     if (actionInfo.cost) {
@@ -162,9 +172,6 @@ export default class Game {
     this.gameState.pendingBlock = { blockerId, card };
     this.gameState.blockChallengePasses = [];
     this.gameState.phase = Phase.AWAIT_BLOCK_CHALLENGE;
-    this.gameState.gameHistory.push(
-      `${getGamerById(this.gameState.gamers, blockerId).name} block`,
-    );
   }
 
   passBlockChallenge(playerId: number): void {
@@ -247,7 +254,10 @@ export default class Game {
         this.clearPending();
         this.gameState.phase = Phase.IDLE;
         this.gameState.turnGamer = nextGamer;
-        this.gameState.gameHistory.push(`${nextGamer.name}의 턴`);
+        this.gameState.events.push({
+          type: "TURN_STARTED",
+          playerId: nextGamer.id,
+        });
         return;
       }
     }
@@ -313,7 +323,11 @@ export default class Game {
   private finishBlockedAction(): void {
     const action = this.requirePendingAction();
     actionMap[action.type].onBlocked?.(this.createActionContext(action));
-    this.gameState.gameHistory.push("action blocked");
+    const block = this.requirePendingBlock();
+    this.gameState.events.push({
+      type: "ACTION_BLOCKED",
+      blockerId: block.blockerId,
+    });
     this.nextTurn();
   }
 
@@ -372,6 +386,11 @@ export default class Game {
     if (gamer.deck.length === 0) {
       gamer.isAlive = false;
     }
+    this.gameState.events.push({
+      type: "INFLUENCE_LOST",
+      playerId,
+      remainingInfluence: gamer.deck.length,
+    });
   }
 
   private exchangeCards(
@@ -475,6 +494,10 @@ export default class Game {
       this.clearPending();
       this.gameState.phase = Phase.FINISHED;
       this.gameState.winner = aliveGamers[0]!;
+      this.gameState.events.push({
+        type: "GAME_FINISHED",
+        winnerId: aliveGamers[0]!.id,
+      });
       return true;
     }
     return false;
