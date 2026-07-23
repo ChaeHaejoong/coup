@@ -210,7 +210,7 @@ describe("decisions and winner", () => {
   test("exchange draws two cards and lets the actor keep two", () => {
     game.getState().gamers[0]!.deck = [Card.AMBASSADOR, Card.DUKE];
 
-    game.act({ type: ActionType.CHANGE, actorId: 1 });
+    game.act({ type: ActionType.EXCHANGE, actorId: 1 });
     game.passChallenge(2);
     game.passChallenge(3);
     game.passChallenge(4);

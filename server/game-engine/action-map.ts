@@ -45,7 +45,7 @@ export const actionMap: ActionMap = {
     targetRequired: true,
     onSuccess: stealOnSuccess,
   },
-  [ActionType.CHANGE]: {
+  [ActionType.EXCHANGE]: {
     claimedCard: Card.AMBASSADOR,
     targetRequired: false,
     onSuccess: exchangeOnSuccess,
