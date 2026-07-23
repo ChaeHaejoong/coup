@@ -1,7 +1,7 @@
 import { actionMap } from "./action-map";
+import type { ActionContext } from "./action-types";
 import CourtDeck from "./deck";
 import {
-  ActionType,
   Card,
   DecisionAfter,
   DecisionType,
@@ -27,11 +27,9 @@ export default class Game {
     blockChallengePasses: [],
     winner: null,
   };
+  private courtDeck = new CourtDeck();
 
-  constructor(
-    private players: Player[],
-    private courtDeck = new CourtDeck(),
-  ) { }
+  constructor(private players: Player[]) {}
 
   start(): void {
     if (this.players.length < 2) {
@@ -64,7 +62,9 @@ export default class Game {
     }
 
     this.gameState.turnGamer = firstGamer;
-    this.gameState.gameHistory.push(`${this.gameState.gamers.length}명으로 게임 시작`);
+    this.gameState.gameHistory.push(
+      `${this.gameState.gamers.length}명으로 게임 시작`,
+    );
     this.gameState.gameHistory.push(`${firstGamer.name}의 턴`);
   }
 
@@ -82,23 +82,18 @@ export default class Game {
     this.gameState.blockPasses = [];
     this.gameState.blockChallengePasses = [];
 
-    if (action.type === ActionType.COUP) {
-      this.gameState.turnGamer!.coin -= 7;
-      this.resolveAction();
-      return;
-    }
-
-    if (action.type === ActionType.ASSASSINATE) {
-      this.gameState.turnGamer!.coin -= 3;
-    }
-
     const actionInfo = actionMap[action.type];
+    if (actionInfo.cost) {
+      this.gameState.turnGamer.coin -= actionInfo.cost;
+    }
+    actionInfo.onDeclare?.(this.createActionContext(action));
+
     if (actionInfo.claimedCard) {
       this.gameState.phase = Phase.AWAIT_CHALLENGE;
       return;
     }
 
-    if (actionInfo.blockerScope !== "none") {
+    if (actionInfo.block) {
       this.gameState.phase = Phase.AWAIT_BLOCK;
       return;
     }
@@ -160,14 +155,16 @@ export default class Game {
 
     const action = this.requirePendingAction();
     const actionInfo = actionMap[action.type];
-    if (!actionInfo.blockableCard.includes(card)) {
+    if (!actionInfo.block?.cards.includes(card)) {
       throw new Error("card cannot block action");
     }
 
     this.gameState.pendingBlock = { blockerId, card };
     this.gameState.blockChallengePasses = [];
     this.gameState.phase = Phase.AWAIT_BLOCK_CHALLENGE;
-    this.gameState.gameHistory.push(`${getGamerById(this.gameState.gamers, blockerId).name} block`);
+    this.gameState.gameHistory.push(
+      `${getGamerById(this.gameState.gamers, blockerId).name} block`,
+    );
   }
 
   passBlockChallenge(playerId: number): void {
@@ -234,7 +231,9 @@ export default class Game {
 
     const gamers = this.gameState.gamers;
     const currentGamer = this.requireTurnGamer();
-    const currentPlayerIndex = gamers.findIndex((gamer) => gamer.id === currentGamer.id);
+    const currentPlayerIndex = gamers.findIndex(
+      (gamer) => gamer.id === currentGamer.id,
+    );
 
     if (currentPlayerIndex === -1) {
       throw new Error("no current gamer in game state");
@@ -264,12 +263,12 @@ export default class Game {
     if (!actor.isAlive) {
       throw new Error("dead player cannot act");
     }
-    if (actor.coin >= 10 && action.type !== ActionType.COUP) {
+    const actionInfo = actionMap[action.type];
+    if (actor.coin >= 10 && !actionInfo.isForcedAction) {
       throw new Error("must coup");
     }
 
-    const actionInfo = actionMap[action.type];
-    if (actionInfo.isTargetRequired) {
+    if (actionInfo.targetRequired) {
       if (!action.targetId) {
         throw new Error("target is required");
       }
@@ -282,17 +281,14 @@ export default class Game {
       }
     }
 
-    if (action.type === ActionType.COUP && actor.coin < 7) {
-      throw new Error("not enough coins");
-    }
-    if (action.type === ActionType.ASSASSINATE && actor.coin < 3) {
+    if (actionInfo.cost && actor.coin < actionInfo.cost) {
       throw new Error("not enough coins");
     }
   }
 
   private afterActionChallengePassed(): void {
     const action = this.requirePendingAction();
-    if (actionMap[action.type].blockerScope === "none") {
+    if (!actionMap[action.type].block) {
       this.resolveAction();
       return;
     }
@@ -301,29 +297,22 @@ export default class Game {
 
   private resolveAction(): void {
     const action = this.requirePendingAction();
-    this.gameState.phase = Phase.ACTION_RESOLVED;
-    actionMap[action.type].onSuccess(this.gameState);
+    const actionInfo = actionMap[action.type];
+    const result = actionInfo.onSuccess(this.createActionContext(action));
 
-    // very stinky code. need to modify
-    if ((this.gameState.phase as Phase) === Phase.AWAIT_DECISION) {
-      if (action.type === ActionType.CHANGE) {
-        this.drawExchangeCards();
-      }
+    if (result?.pendingDecision) {
+      this.gameState.phase = Phase.AWAIT_DECISION;
+      this.gameState.pendingDecision = result.pendingDecision;
       return;
     }
 
+    this.gameState.phase = Phase.ACTION_RESOLVED;
     this.nextTurn();
   }
 
-  private drawExchangeCards(): void {
-    const decision = this.gameState.pendingDecision;
-    if (!decision || decision.type !== DecisionType.EXCHANGE) {
-      throw new Error("no exchange decision");
-    }
-    decision.cards = [...this.requireTurnGamer().deck, this.courtDeck.draw(), this.courtDeck.draw()];
-  }
-
   private finishBlockedAction(): void {
+    const action = this.requirePendingAction();
+    actionMap[action.type].onBlocked?.(this.createActionContext(action));
     this.gameState.gameHistory.push("action blocked");
     this.nextTurn();
   }
@@ -358,7 +347,11 @@ export default class Game {
     };
   }
 
-  private loseCards(playerId: number, cardIndexes: number[], count: number): void {
+  private loseCards(
+    playerId: number,
+    cardIndexes: number[],
+    count: number,
+  ): void {
     const gamer = getGamerById(this.gameState.gamers, playerId);
     const uniqueIndexes = [...new Set(cardIndexes)];
     if (uniqueIndexes.length !== count) {
@@ -381,7 +374,11 @@ export default class Game {
     }
   }
 
-  private exchangeCards(playerId: number, cardIndexes: number[], cards: Card[]): void {
+  private exchangeCards(
+    playerId: number,
+    cardIndexes: number[],
+    cards: Card[],
+  ): void {
     const gamer = getGamerById(this.gameState.gamers, playerId);
     const uniqueIndexes = [...new Set(cardIndexes)];
     if (uniqueIndexes.length !== gamer.deck.length) {
@@ -420,12 +417,12 @@ export default class Game {
   private blockEligibleIds(): number[] {
     const action = this.requirePendingAction();
     const actionInfo = actionMap[action.type];
-    if (actionInfo.blockerScope === "anyone") {
+    if (actionInfo.block?.scope === "anyone") {
       return this.gameState.gamers
         .filter((gamer) => gamer.isAlive && gamer.id !== action.actorId)
         .map((gamer) => gamer.id);
     }
-    if (actionInfo.blockerScope === "target" && action.targetId) {
+    if (actionInfo.block?.scope === "target" && action.targetId) {
       const target = getGamerById(this.gameState.gamers, action.targetId);
       return target.isAlive ? [target.id] : [];
     }
@@ -447,10 +444,11 @@ export default class Game {
   }
 
   private everyonePassed(eligibleIds: number[]): boolean {
-    return eligibleIds.every((id) =>
-      this.gameState.challengePasses.includes(id) ||
-      this.gameState.blockPasses.includes(id) ||
-      this.gameState.blockChallengePasses.includes(id),
+    return eligibleIds.every(
+      (id) =>
+        this.gameState.challengePasses.includes(id) ||
+        this.gameState.blockPasses.includes(id) ||
+        this.gameState.blockChallengePasses.includes(id),
     );
   }
 
@@ -458,6 +456,17 @@ export default class Game {
     if (!passes.includes(playerId)) {
       passes.push(playerId);
     }
+  }
+
+  private createActionContext(action: Action): ActionContext {
+    return {
+      state: this.gameState,
+      action,
+      getGamer: (playerId) => getGamerById(this.gameState.gamers, playerId),
+      drawCard: () => this.courtDeck.draw(),
+      putBackCard: (card) => this.courtDeck.putBack(card),
+      putBackCards: (cards) => this.courtDeck.putBackMany(cards),
+    };
   }
 
   private finishIfWinner(): boolean {

@@ -37,7 +37,7 @@ export const ActionType = {
   COUP: "COUP",
   TAX: "TAX",
   STEAL: "STEAL",
-  CHANGE: "CHANGE",
+  EXCHANGE: "EXCHANGE",
   ASSASSINATE: "ASSASSINATE",
 } as const;
 export type ActionType = (typeof ActionType)[keyof typeof ActionType];
