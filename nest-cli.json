@@ -3,7 +3,7 @@
   "sourceRoot": "server/api",
   "entryFile": "main",
   "compilerOptions": {
-    "tsConfigPath": "tsconfig.build.json",
+    "tsConfigPath": "tsconfig.server.json",
     "deleteOutDir": true
   }
 }

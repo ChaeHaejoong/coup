@@ -10,8 +10,12 @@
     "dev": "nest start --watch",
     "build": "nest build",
     "start": "node dist/server/api/main.js",
-    "client": "tsx client/index.ts",
-    "check": "tsc --noEmit",
+    "client": "vite --config client/vite.config.ts",
+    "client:dev": "vite --config client/vite.config.ts",
+    "client:build": "tsc -p tsconfig.client.json && vite build --config client/vite.config.ts",
+    "client:preview": "vite preview --config client/vite.config.ts",
+    "client:check": "tsc -p tsconfig.client.json --noEmit",
+    "check": "tsc -p tsconfig.server.json --noEmit",
     "test": "vitest"
   },
   "dependencies": {
@@ -20,6 +24,9 @@
     "@nestjs/platform-express": "^11.1.28",
     "@nestjs/platform-socket.io": "^11.1.28",
     "@nestjs/websockets": "^11.1.28",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "socket.io": "^4.8.3",
@@ -28,9 +35,15 @@
   "devDependencies": {
     "@nestjs/cli": "^11.0.24",
     "@nestjs/testing": "^11.1.28",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.1.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "tailwindcss": "^4.3.3",
     "tsx": "^4.23.0",
     "typescript": "^5.9.3",
+    "vite": "^8.1.5",
     "vitest": "^4.1.10"
   }
 }
