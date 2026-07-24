@@ -1,10 +1,23 @@
 import { describe, expect, test } from "vitest";
 
-import { Card, Phase, type GameState } from "../../game-engine/types";
+import {
+  ActionType,
+  Card,
+  Phase,
+  type GameState,
+} from "../../game-engine/types";
 import { presentGameView } from "./game-presenter";
 
 const state: GameState = {
-  events: [],
+  events: [
+    { type: "TURN_STARTED", playerId: 1 },
+    {
+      type: "ACTION_DECLARED",
+      actorId: 1,
+      actionType: ActionType.STEAL,
+      targetId: 2,
+    },
+  ],
   gamers: [
     {
       id: 1,
@@ -40,7 +53,7 @@ const state: GameState = {
 
 describe("presentGameView", () => {
   test("shows only self cards in normal mode", () => {
-    const view = presentGameView(0, 1, state, false);
+    const view = presentGameView(0, 1, state, false, null);
 
     expect(view.private?.cards).toEqual([Card.DUKE, Card.CAPTAIN]);
     expect(view.players[0]?.cards).toBeUndefined();
@@ -48,9 +61,34 @@ describe("presentGameView", () => {
   });
 
   test("shows all cards in debug mode", () => {
-    const view = presentGameView(0, 1, state, true);
+    const view = presentGameView(0, 1, state, true, null);
 
     expect(view.players[0]?.cards).toEqual([Card.DUKE, Card.CAPTAIN]);
     expect(view.players[1]?.cards).toEqual([Card.ASSASSIN]);
+  });
+
+  test("adds player names to id-based game events", () => {
+    const view = presentGameView(0, 1, state, false, null);
+
+    expect(view.turnPlayerName).toBe("해중");
+    expect(view.events).toEqual([
+      { type: "TURN_STARTED", playerId: 1, playerName: "해중" },
+      {
+        type: "ACTION_DECLARED",
+        actorId: 1,
+        actorName: "해중",
+        actionType: ActionType.STEAL,
+        targetId: 2,
+        targetName: "성준",
+      },
+    ]);
+  });
+
+  test("includes turn timer metadata when provided", () => {
+    const turnTimer = { deadlineAt: 1_000, durationMs: 10_000 };
+
+    const view = presentGameView(0, 1, state, false, turnTimer);
+
+    expect(view.turnTimer).toEqual(turnTimer);
   });
 });

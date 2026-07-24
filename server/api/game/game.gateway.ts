@@ -24,6 +24,7 @@ import {
   GameSessionService,
   type PlayerGameView,
 } from "./game-session.service";
+import { RoomService } from "../room/room.service";
 
 type Ack<T> = (result: T) => void;
 
@@ -36,7 +37,10 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private readonly sockets = new Map<string, Socket>();
 
-  constructor(private readonly gameSessionService: GameSessionService) {
+  constructor(
+    private readonly gameSessionService: GameSessionService,
+    private readonly roomService: RoomService,
+  ) {
     this.gameSessionService.setGameUpdateListener((_roomId, views) => {
       this.emitGameViews(views);
     });
@@ -86,9 +90,18 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage(GameRequestEvent.CHAT)
   chat(@MessageBody() body: ChatRequest): ChatReceivedResponse {
+    const room = this.roomService.getRoom(body.roomId);
+    const player = room.players.find(
+      (roomPlayer) => roomPlayer.id === body.playerId,
+    );
+    if (!player) {
+      throw new Error(GameErrorCode.NOT_ROOM_MEMBER);
+    }
+
     const response = {
       roomId: body.roomId,
       playerId: body.playerId,
+      playerName: player.name,
       message: body.message,
     };
     this.server

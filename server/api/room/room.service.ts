@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 
 import {
   PlayerRole,
@@ -34,13 +34,17 @@ export class RoomService {
     );
 
     if (joinedPlayer) {
-      joinedPlayer.name = body.playerName;
-
       return {
         room: this.toRoom(room),
         playerId: joinedPlayer.id,
         socketId: joinedPlayer.socketId,
       };
+    }
+
+    if (room.players.some((roomPlayer) => roomPlayer.name === body.playerName)) {
+      throw new ConflictException(
+        `player name ${body.playerName} already exists in room ${body.roomId}`,
+      );
     }
 
     const playerId = this.generatePlayerId(room);

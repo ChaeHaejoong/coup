@@ -16,4 +16,31 @@ describe("RoomService", () => {
       { id: 1, socketId: "socket-1", name: "해중", role: PlayerRole.HOST },
     ]);
   });
+
+  test("rejects a new socket joining a room with a duplicate name", () => {
+    const service = new RoomService();
+    const created = service.create("first room", "해중", "socket-1");
+
+    expect(() =>
+      service.joinRoom(
+        { roomId: created.room.roomId, playerName: "해중" },
+        "socket-2",
+      ),
+    ).toThrow("player name 해중 already exists in room 0");
+  });
+
+  test("returns the existing player unchanged when the same socket rejoins", () => {
+    const service = new RoomService();
+    const created = service.create("first room", "해중", "socket-1");
+
+    const result = service.joinRoom(
+      { roomId: created.room.roomId, playerName: "다른이름" },
+      "socket-1",
+    );
+
+    expect(result.playerId).toBe(created.playerId);
+    expect(result.room.players).toEqual([
+      { id: 1, socketId: "socket-1", name: "해중", role: PlayerRole.HOST },
+    ]);
+  });
 });

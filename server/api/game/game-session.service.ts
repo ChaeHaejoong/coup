@@ -16,6 +16,7 @@ type StoredGameSession = {
   roomId: number;
   game: Game;
   timer: NodeJS.Timeout | null;
+  timerDeadlineAt: number | null;
 };
 
 export type PlayerGameView = {
@@ -25,6 +26,7 @@ export type PlayerGameView = {
 };
 
 type GameUpdateListener = (roomId: number, views: PlayerGameView[]) => void;
+const TURN_TIMER_DURATION_MS = 10_000;
 
 @Injectable()
 export class GameSessionService {
@@ -61,7 +63,12 @@ export class GameSessionService {
     );
     game.start();
 
-    const session: StoredGameSession = { roomId, game, timer: null };
+    const session: StoredGameSession = {
+      roomId,
+      game,
+      timer: null,
+      timerDeadlineAt: null,
+    };
     this.sessions.set(roomId, session);
     this.scheduleTimer(session);
 
@@ -138,7 +145,13 @@ export class GameSessionService {
     return room.players.map((player) => ({
       socketId: player.socketId,
       playerId: player.id,
-      view: presentGameView(session.roomId, player.id, state, debug),
+      view: presentGameView(
+        session.roomId,
+        player.id,
+        state,
+        debug,
+        this.getTurnTimer(session),
+      ),
     }));
   }
 
@@ -147,6 +160,7 @@ export class GameSessionService {
       clearTimeout(session.timer);
       session.timer = null;
     }
+    session.timerDeadlineAt = null;
 
     const phase = session.game.getState().phase;
     if (
@@ -157,15 +171,26 @@ export class GameSessionService {
       return;
     }
 
+    session.timerDeadlineAt = Date.now() + TURN_TIMER_DURATION_MS;
     session.timer = setTimeout(() => {
       session.timer = null;
+      session.timerDeadlineAt = null;
       this.autoPass(session);
       this.scheduleTimer(session);
       this.gameUpdateListener?.(
         session.roomId,
         this.getGameViewsForSession(session),
       );
-    }, 10_000);
+    }, TURN_TIMER_DURATION_MS);
+  }
+
+  private getTurnTimer(session: StoredGameSession): GameView["turnTimer"] {
+    return session.timerDeadlineAt
+      ? {
+          deadlineAt: session.timerDeadlineAt,
+          durationMs: TURN_TIMER_DURATION_MS,
+        }
+      : null;
   }
 
   private autoPass(session: StoredGameSession): void {
