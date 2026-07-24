@@ -16,7 +16,7 @@
     "client:preview": "vite preview --config client/vite.config.ts",
     "client:check": "tsc -p tsconfig.client.json --noEmit",
     "check": "tsc -p tsconfig.server.json --noEmit",
-    "test": "vitest"
+    "test": "vitest --config vitest.config.mts"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.28",

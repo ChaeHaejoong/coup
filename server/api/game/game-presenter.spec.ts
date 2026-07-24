@@ -71,6 +71,7 @@ describe("presentGameView", () => {
     const view = presentGameView(0, 1, state, false, null);
 
     expect(view.turnPlayerName).toBe("해중");
+
     expect(view.events).toEqual([
       { type: "TURN_STARTED", playerId: 1, playerName: "해중" },
       {

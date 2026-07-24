@@ -77,30 +77,50 @@ export type PrivateGamerView = {
 export type GameView = {
   roomId: number;
   selfPlayerId: number;
+  selfPlayerName: string;
   phase: Phase;
   turnPlayerId: number | null;
+  turnPlayerName: string | null;
+  turnTimer: {
+    deadlineAt: number;
+    durationMs: number;
+  } | null;
   players: PublicGamerView[];
   private: PrivateGamerView | null;
-  pendingAction: { type: ActionType; actorId: number; targetId?: number } | null;
-  pendingBlock: { blockerId: number; card: Card } | null;
+  pendingAction: {
+    type: ActionType;
+    actorId: number;
+    actorName: string;
+    targetId?: number;
+    targetName?: string;
+  } | null;
+  pendingBlock: { blockerId: number; blockerName: string; card: Card } | null;
   pendingDecision: {
     type: DecisionType;
     playerId: number;
+    playerName: string;
     cardCount?: number;
   } | null;
   events: GameEventView[];
   winnerId: number | null;
+  winnerName: string | null;
 };
 
 export type GameEventView = {
   type: string;
   playerCount?: number;
   actorId?: number;
+  actorName?: string;
   targetId?: number;
+  targetName?: string;
   actionType?: ActionType;
   card?: Card;
   playerId?: number;
+  playerName?: string;
+  blockerId?: number;
+  blockerName?: string;
   winnerId?: number;
+  winnerName?: string;
   remainingInfluence?: number;
 };
 
