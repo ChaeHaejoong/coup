@@ -7,15 +7,14 @@
   "type": "commonjs",
   "main": "dist/server/api/main.js",
   "scripts": {
-    "dev": "nest start --watch",
-    "build": "nest build",
-    "start": "node dist/server/api/main.js",
-    "client": "vite --config client/vite.config.ts",
+    "server:dev": "nest start --watch",
+    "server:build": "nest build",
+    "server:start": "node dist/server/api/main.js",
+    "server:check": "tsc -p tsconfig.server.json --noEmit",
     "client:dev": "vite --config client/vite.config.ts",
     "client:build": "tsc -p tsconfig.client.json && vite build --config client/vite.config.ts",
     "client:preview": "vite preview --config client/vite.config.ts",
     "client:check": "tsc -p tsconfig.client.json --noEmit",
-    "check": "tsc -p tsconfig.server.json --noEmit",
     "test": "vitest --config vitest.config.mts"
   },
   "dependencies": {

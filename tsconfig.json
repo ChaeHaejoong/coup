@@ -10,5 +10,10 @@
     "moduleDetection": "force",
     "skipLibCheck": true
   },
-  "files": []
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.client.json" },
+    { "path": "./tsconfig.server.json" },
+    { "path": "./tsconfig.vitest.json" }
+  ]
 }
